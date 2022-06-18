@@ -225,11 +225,11 @@ impl DiscordVoiceProtocol {
         Ok(())
     }
 
-    fn get_latency(&self) -> f64 {
+    pub fn get_latency(&self) -> f64 {
         *self.recent_acks.back().unwrap_or(&f64::NAN)
     }
 
-    fn get_average_latency(&self) -> f64 {
+    pub fn get_average_latency(&self) -> f64 {
         if self.recent_acks.len() == 0 {
             f64::NAN
         } else {
