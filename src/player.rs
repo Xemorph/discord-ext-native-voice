@@ -18,6 +18,8 @@ use xsalsa20poly1305::aead::Buffer;
 use xsalsa20poly1305::aead::{generic_array::GenericArray, AeadInPlace, NewAead};
 use xsalsa20poly1305::XSalsa20Poly1305;
 
+use ogg::{PacketReader, Packet, OggReadError};
+
 pub const SAMPLING_RATE: u16 = 48000;
 pub const CHANNELS: u16 = 2;
 pub const FRAME_LENGTH: u16 = 20;
@@ -66,14 +68,10 @@ impl FFmpegPCMAudio {
             .arg("-i")
             .arg(&input)
             .args(&[
-                "-f",
-                "s16le",
-                "-ar",
-                "48000",
-                "-ac",
-                "2",
-                "-loglevel",
-                "warning",
+                "-f", "s16le",
+                "-ar", "48000",
+                "-ac", "2",
+                "-loglevel", "warning",
                 "pipe:1",
             ])
             .stdout(Stdio::piped())
@@ -107,6 +105,73 @@ impl Drop for FFmpegPCMAudio {
         }
     }
 }
+
+pub struct FFmpegOpusAudio {
+    bitrate: usize,
+    iter_packets: PacketReader<std::process::ChildStdout>,
+}
+
+impl FFmpegOpusAudio {
+    pub fn new(input: &str, bitrate: Option<usize>) -> Result<Self, ProtocolError> {
+        let _bitrate: usize = bitrate.unwrap_or(128)
+
+        let process = Command::new("ffmpeg")
+            .arg("-i")
+            .arg(&input)
+            .args(&[
+                "-map_metadata", "-1",
+                "-f", "opus",
+                "-c:a", "libopus",
+                "-ar", "48000",
+                "-ac", "2",
+                "-b:a", &format!("{}k", _bitrate).to_string(),
+                "-loglevel", "warning",
+                "pipe:1",
+            ])
+            .stdout(Stdio::piped())
+            .spawn()?;
+
+        Ok(Self { bitrate: _bitrate, iter_packets: PacketReader::new(process.stdout.unwrap()) })
+    }
+}
+
+impl AudioSource for FFmpegOpusAudio {
+    fn get_bitrate(&mut self) -> usize {
+        self.bitrate * 1000
+    }
+
+    fn get_type(&mut self) -> AudioType {
+        AudioType::Opus
+    }
+
+    fn read_opus_frame(&mut self, buffer: &mut [u8]) -> Option<usize> {
+        let r: Result<Option<Packet>, OggReadError> = self.iter_packets.read_packet();
+		match r {
+			Ok(Some(p)) => {
+                let size: usize = p.data.len();
+                let packet: Vec<u8> = p.data;
+                buffer[0..size].copy_from_slice(&packet);
+
+                Some(size)
+            },
+            Ok(None) => None,
+            Err(e) => {
+				println!("Encountered Error: {:?}", e);
+                None
+            }
+        }
+    }
+}
+
+/*
+impl Drop for FFmpegOpusAudio {
+    fn drop(&mut self) {
+        if let Err(e) = self.process.kill() {
+            println!("Could not kill ffmpeg process: {:?}", e);
+        }
+    }
+}
+*/
 
 /// In order to efficiently manage a buffer we need to prepend some bytes during
 /// packet creation, so a specific offset of that buffer has to modified
@@ -349,7 +414,7 @@ fn audio_play_loop(
     let (mut encoder, mut socket) = {
         let mut proto = protocol.lock();
         proto.speaking(SpeakingFlags::microphone())?;
-        (AudioEncoder::from_protocol(&*proto)?, proto.clone_socket()?)
+        (AudioEncoder::from_protocol(&*proto, aud.get_bitrate())?, proto.clone_socket()?)
     };
 
     let addr = socket.peer_addr()?;
