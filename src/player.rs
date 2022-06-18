@@ -243,14 +243,14 @@ fn encrypt_xsalsa20_poly1305_lite(
 }
 
 impl AudioEncoder {
-    fn from_protocol(protocol: &DiscordVoiceProtocol) -> Result<Self, ProtocolError> {
+    fn from_protocol(protocol: &DiscordVoiceProtocol, bitrate: usize) -> Result<Self, ProtocolError> {
         let mut encoder = audiopus::coder::Encoder::new(
             audiopus::SampleRate::Hz48000,
             audiopus::Channels::Stereo,
             audiopus::Application::Audio,
         )?;
 
-        encoder.set_bitrate(audiopus::Bitrate::BitsPerSecond(128000))?;
+        encoder.set_bitrate(audiopus::Bitrate::BitsPerSecond(i32::try_from(bitrate).unwrap_or(128000i32)))?;
         encoder.enable_inband_fec()?;
         encoder.set_packet_loss_perc(15)?;
         encoder.set_bandwidth(audiopus::Bandwidth::Fullband)?;
