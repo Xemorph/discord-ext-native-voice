@@ -32,7 +32,7 @@ from discord.ext.native_voice import VoiceClient
 
 ...
 client = await voice_channel.connect(cls=VoiceClient)
-client.play("audio.mp3")
+client.play("audio.mp3", after=None, bitrate=132)
 ```
 
 The interface imitates the standard [VoiceClient](https://discordpy.readthedocs.io/en/latest/api.html#discord.VoiceClient), but it is implemented natively in Rust.
