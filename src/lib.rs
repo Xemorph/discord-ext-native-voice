@@ -1,6 +1,6 @@
 use pyo3::create_exception;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::{PyBytes, PyDict, PyFunction};
 
 use std::sync::Arc;
 use std::thread;
@@ -11,6 +11,7 @@ pub mod error;
 pub mod payloads;
 pub mod player;
 pub mod protocol;
+pub mod callback;
 pub(crate) mod state;
 
 create_exception!(_native_voice, ReconnectError, pyo3::exceptions::PyException);
