@@ -106,6 +106,18 @@ impl VoiceConnection {
         }
     }
 
+    fn pause(&mut self) {
+        if let Some(player) = &self.player {
+            player.pause();
+        }
+    }
+
+    fn resume(&mut self) {
+        if let Some(player) = &self.player {
+            player.resume();
+        }
+    }
+
     #[text_signature = "(input, after, bitrate, /)"]
     fn play(&mut self, input: String, after: Py<PyFunction>, bitrate: Option<usize>) -> PyResult<()> {
         if let Some(player) = &self.player {
@@ -144,6 +156,14 @@ impl VoiceConnection {
         }
     }
 
+    fn is_paused(&self) -> bool {
+        if let Some(player) = &self.player {
+            player.is_paused()
+        } else {
+            false
+        }
+    }
+
     #[getter]
     fn encryption_mode(&self) -> PyResult<String> {
         let encryption = {
@@ -160,6 +180,24 @@ impl VoiceConnection {
             proto.secret_key
         };
         Ok(secret_key.into())
+    }
+
+    #[getter]
+    fn latency(&self) -> PyResult<f64> {
+        let latency = {
+            let proto = self.protocol.lock();
+            proto.get_latency()
+        };
+        Ok(latency.into())
+    }
+
+    #[getter]
+    fn average_latency(&self) -> PyResult<f64> {
+        let average_latency = {
+            let proto = self.protocol.lock();
+            proto.get_average_latency()
+        };
+        Ok(average_latency.into())
     }
 
     fn send_playing(&self) -> PyResult<()> {
