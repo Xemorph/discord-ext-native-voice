@@ -31,10 +31,15 @@ pub enum AudioType {
 }
 
 pub trait AudioSource: Send {
+    /// Bitrate of the source, useful opus encoded sources
+    fn get_bitrate(&self) -> usize {
+        unimplemented!()
+    }
+
     /// The audio type of this source
     /// If AudioType is Opus then the data will be passed as-is to discord
     fn get_type(&self) -> AudioType {
-        AudioType::Pcm
+        unimplemented!()
     }
 
     /// Reads a frame of audio (20ms 16-bit stereo 48000Hz)
@@ -78,6 +83,14 @@ impl FFmpegPCMAudio {
 }
 
 impl AudioSource for FFmpegPCMAudio {
+    fn get_bitrate(&mut self) -> usize {
+        128000usize
+    }
+
+    fn get_type(&mut self) -> AudioType {
+        AudioType::Pcm
+    }
+
     fn read_pcm_frame(&mut self, buffer: &mut [i16]) -> Option<usize> {
         let stdout = self.process.stdout.as_mut().unwrap();
         let bytes = unsafe {
