@@ -345,6 +345,17 @@ class VoiceClient(VoiceProtocol):
     def play(self, title: str,
              after: Optional[Callable[[Optional[Exception]], Any]] = None,
              bitrate: Optional[int] = None) -> None:
+        """Plays the given song.
+
+        Parameters
+        -----------
+        after: Optional[Callable[[Optional[Exception]], Any]]
+            A callable function which gets executed after the song have been
+            played.
+        bitrate: Optional[:class:`int`]
+            Sets the bitrate of the opus encoded source. If set then
+            the native client will use FFmpegOpusAudio implementation.
+        """
         if self._connection:
             self._connection.play(title, after, bitrate)
 
