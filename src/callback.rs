@@ -5,5 +5,5 @@ use std::sync::Arc;
 
 
 pub struct Function {
-    callback: Arc<Py<PyFunction>>,
+    pub callback: Arc<Py<PyFunction>>,
 }

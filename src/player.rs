@@ -4,6 +4,7 @@ use crate::protocol::DiscordVoiceProtocol;
 use crate::state::PlayingState;
 
 use parking_lot::Mutex;
+use std::convert::TryFrom;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::net::UdpSocket;
@@ -34,13 +35,13 @@ pub enum AudioType {
 
 pub trait AudioSource: Send {
     /// Bitrate of the source, useful opus encoded sources
-    fn get_bitrate(&self) -> usize {
+    fn get_bitrate(&mut self) -> usize {
         unimplemented!()
     }
 
     /// The audio type of this source
     /// If AudioType is Opus then the data will be passed as-is to discord
-    fn get_type(&self) -> AudioType {
+    fn get_type(&mut self) -> AudioType {
         unimplemented!()
     }
 
@@ -112,9 +113,8 @@ pub struct FFmpegOpusAudio {
 }
 
 impl FFmpegOpusAudio {
-    pub fn new(input: &str, bitrate: Option<usize>) -> Result<Self, ProtocolError> {
-        let _bitrate: usize = bitrate.unwrap_or(128)
-
+    pub fn new(input: &str, bitrate: usize) -> Result<Self, ProtocolError> {
+        // let _bitrate: usize = bitrate.unwrap_or(128);
         let process = Command::new("ffmpeg")
             .arg("-i")
             .arg(&input)
@@ -124,14 +124,14 @@ impl FFmpegOpusAudio {
                 "-c:a", "libopus",
                 "-ar", "48000",
                 "-ac", "2",
-                "-b:a", &format!("{}k", _bitrate).to_string(),
+                "-b:a", &format!("{}k", bitrate).to_string(),
                 "-loglevel", "warning",
                 "pipe:1",
             ])
             .stdout(Stdio::piped())
             .spawn()?;
 
-        Ok(Self { bitrate: _bitrate, iter_packets: PacketReader::new(process.stdout.unwrap()) })
+        Ok(Self { bitrate: bitrate, iter_packets: PacketReader::new(process.stdout.unwrap()) })
     }
 }
 
@@ -413,6 +413,7 @@ fn audio_play_loop(
 
     let (mut encoder, mut socket) = {
         let mut proto = protocol.lock();
+        let mut aud   = source.lock();
         proto.speaking(SpeakingFlags::microphone())?;
         (AudioEncoder::from_protocol(&*proto, aud.get_bitrate())?, proto.clone_socket()?)
     };
@@ -437,7 +438,8 @@ fn audio_play_loop(
             next_iteration = Instant::now();
 
             let proto = protocol.lock();
-            encoder = AudioEncoder::from_protocol(&*proto)?;
+            let mut aud = source.lock();
+            encoder = AudioEncoder::from_protocol(&*proto, aud.get_bitrate())?;
             socket = proto.clone_socket()?;
         }
 

@@ -1,6 +1,6 @@
 use pyo3::create_exception;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict, PyFunction};
+use pyo3::types::{PyBytes, PyDict, PyTuple, PyFunction};
 
 use std::sync::Arc;
 use std::thread;
@@ -11,8 +11,10 @@ pub mod error;
 pub mod payloads;
 pub mod player;
 pub mod protocol;
-pub mod callback;
+pub(crate) mod callback;
 pub(crate) mod state;
+
+use crate::callback::Function;
 
 create_exception!(_native_voice, ReconnectError, pyo3::exceptions::PyException);
 create_exception!(_native_voice, ConnectionError, pyo3::exceptions::PyException);
@@ -104,15 +106,27 @@ impl VoiceConnection {
         }
     }
 
-    fn play(&mut self, input: String) -> PyResult<()> {
+    #[text_signature = "(input, after, bitrate, /)"]
+    fn play(&mut self, input: String, after: Py<PyFunction>, bitrate: Option<usize>) -> PyResult<()> {
         if let Some(player) = &self.player {
             player.stop();
         }
 
-        let source = Box::new(player::FFmpegPCMAudio::new(input.as_str())?);
+        let source: Box<dyn player::AudioSource> = match bitrate {
+            Some(btr) => Box::new(player::FFmpegOpusAudio::new(input.as_str(), btr)?),
+            _ => Box::new(player::FFmpegPCMAudio::new(input.as_str())?),
+        };
+        let func = Function { callback: Arc::new(after) };
         let player = player::AudioPlayer::new(
             |error| {
                 println!("Audio Player Error: {:?}", error);
+                let callback = func.callback;
+                let gil = Python::acquire_gil();
+                let py = gil.python();
+                match error {
+                    None => callback.call0(py).unwrap(),
+                    Some(e) => callback.call1(py, PyTuple::new(py, &[PyErr::from(e)])).unwrap(),
+                };
             },
             Arc::clone(&self.protocol),
             Arc::new(Mutex::new(source)),
