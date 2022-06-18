@@ -6,30 +6,27 @@ import asyncio
 import threading
 import logging
 
-from discord import (VoiceProtocol)
+import discord
+from discord import (
+    abc,
+    ClientUser,
+    Guild,
+    StageChannel,
+    VoiceChannel,
+    VoiceProtocol
+)
 from discord.backoff import ExponentialBackoff
 from discord.utils import (
     MISSING,
     sane_wait_for
 )
+from discord.types.voice import (
+    GuildVoiceState as GuildVoiceStatePayload,
+    VoiceServerUpdate as VoiceServerUpdatePayload
+)
 
-if TYPE_CHECKING:
-    from discord import (
-        abc,
-        ClientUser,
-        ConnectionState,
-        Guild,
-        StageChannel,
-        VoiceChannel
-    )
 
-    from discord.types.voice import (
-        GuildVoiceState as GuildVoiceStatePayload,
-        VoiceServerUpdate as VoiceServerUpdatePayload
-    )
-
-    VocalGuildChannel = Union[VoiceChannel, StageChannel]
-
+VocalGuildChannel = Union[VoiceChannel, StageChannel]
 log = logging.getLogger(__name__)
 
 
@@ -70,7 +67,7 @@ class VoiceClient(VoiceProtocol):
         self._connector: _native.VoiceConnector = _native.VoiceConnector()
         self._connector.user_id = client.user.id
         self.loop: asyncio.AbstractEventLoop = state.loop
-        self._state: ConnectionState = state
+        self._state: discord.state.ConnectionState = state
         # this will be used in the AudioPlayer thread
         self._connected: threading.Event = threading.Event()
 
