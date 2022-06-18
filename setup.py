@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-import sys
 from setuptools import setup
-from setuptools_rust import RustExtension
+from setuptools_rust import RustExtension, Binding
 
 setup_requires = [
     'setuptools-rust>=0.11.1,<0.12',
@@ -22,7 +21,12 @@ setup(
         "Operating System :: MacOS",
     ],
     packages=['discord.ext.native_voice'],
-    rust_extensions=[RustExtension('discord.ext.native_voice._native_voice')],
+    rust_extensions=[
+        RustExtension(
+            'discord.ext.native_voice._native_voice',
+            binding=Binding.PyO3
+        )
+    ],
     install_requires=[],
     setup_requires=setup_requires,
     include_package_data=True,
